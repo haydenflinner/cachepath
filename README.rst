@@ -24,8 +24,9 @@ A small package for pythonic parameterized cache paths.
 
 
 .. _getting-started:
+
 Getting Started
------------
+----------------
 **Install:**
     ``pip install cachepath``
 **Import:**
@@ -129,7 +130,8 @@ in Py3 and ``pathlib2`` in Py2::
 
 Convinced yet? ``pip install cachepath`` or copy `the source`_ into your local
 ``utils.py`` (you know you have one.)
-:ref:`API doc is here.<genned>`
+
+`API doc is here`_.
 
 
 Shameless Promo
@@ -147,3 +149,4 @@ Find yourself working with paths a lot in cmd-line tools? You might like
 .. _`audreyr/cookiecutter-pypackage`: https://github.com/audreyr/cookiecutter-pypackage
 .. _`invoke`: https://www.pyinvoke.org
 .. _`magicinvoke`: https://magicinvoke.readthedocs.io/en/latest/
+.. _`API doc is here`: https://cachepath.readthedocs.io/en/latest/
