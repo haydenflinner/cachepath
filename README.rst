@@ -1,7 +1,5 @@
-=========
-CachePath
-=========
-
+Welcome to cachepath's documentation!
+======================================
 
 .. image:: https://img.shields.io/pypi/v/cachepath.svg
         :target: https://pypi.python.org/pypi/cachepath
@@ -13,39 +11,34 @@ CachePath
         :target: https://cachepath.readthedocs.io/en/latest/?badge=latest
         :alt: Documentation Status
 
-
-
-
 A small package for pythonic parameterized cache paths.
-
-
-* Free software: MIT license
-* Documentation: https://cachepath.readthedocs.io.
-
-
-.. _getting-started:
 
 Getting Started
 ----------------
-**Install:**
-    ``pip install cachepath``
-**Import:**
-    ``from cachepath import CachePath, Path``
+
+**Install:** ``pip install cachepath``
+
+**Import:** ``from cachepath import CachePath, Path``
+
+**Docs:** https://cachepath.readthedocs.io
 
 **Why?**
     1. Integrates ``pathlib`` with ``tempfile`` and ``shutil``
     2. Wraps ``pathlib`` import for Py2/3 compat. (not in ``six``)
 
-**Why? But longer:**
-Just need a temp path to pass to some random tool for its logfile?
+**Why, but longer:**
+
+Do you need a temp path to pass to some random tool for its logfile?
 Behold, a gaping hole in ``pathlib``::
 
     def easy_get_tempfile():
-        return CachePath()  # Path('/tmp/213kjdsrandom')
+        return TempPath()  # Path('/tmp/213kjdsrandom')
     def hard_get_tempfile():
-        return Path(tempfile.mkstemp()) # I forgot to call Path the first time
+        # Deprecated, plus I forgot to call Path the first time
+        return Path(tempfile.mktemp())
 
-Now, I'm running this tool multiple times, how do I attach some info to the
+Now, suppose I'm running this tool multiple times, and I'd like to skip running the
+tool if I already have results. How do I attach some info to the
 filename?  ::
 
     def easy_get_tempfile(param):
@@ -139,6 +132,8 @@ Shameless Promo
 Find yourself working with paths a lot in cmd-line tools? You might like
 `invoke`_ and/or `magicinvoke`_!
 
+
+
 .. [*] The source for CachePath can be downloaded from the `Github repo`_.
 
 .. _Github repo: https://github.com/haydenflinner/cachepath
@@ -149,4 +144,4 @@ Find yourself working with paths a lot in cmd-line tools? You might like
 .. _`audreyr/cookiecutter-pypackage`: https://github.com/audreyr/cookiecutter-pypackage
 .. _`invoke`: https://www.pyinvoke.org
 .. _`magicinvoke`: https://magicinvoke.readthedocs.io/en/latest/
-.. _`API doc is here`: https://cachepath.readthedocs.io/en/latest/
+.. _`API doc is here`: https://cachepath.readthedocs.io/en/latest/cachepath.html

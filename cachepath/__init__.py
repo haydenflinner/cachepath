@@ -84,8 +84,8 @@ class CachePath(Path):
         p = CachePath('date', 'processed_data', dir=True)
 
     For an example of real usage, here's a quick cache for an arbitrary
-    function/arg combo
-    ::
+    function/arg combo ::
+
         def get_scraped_ebay_stats(product_id):
             p = CachePath('ebay_results/{}'.format(product_id))
             if not p.exists():
@@ -94,10 +94,10 @@ class CachePath(Path):
 
     Parameters
     ----------
-    *args : [str], optional
+    args : [str], optional
         List of strings to join for Path. If None, ``getempfile`` is used.
 
-    *dir: bool, optional
+    dir : bool, optional
         Is the path intended to be a directory? Useful when you just need a
         tempdir for lots of files, and you don't want to make a CachePath
         out of each. ::
@@ -107,11 +107,11 @@ class CachePath(Path):
             (d/'tool2results').touch()
             list(d.iterdir()) == ['tool1results', 'tool2results']
 
-    *suffix : str, optional
-        Appended to the last path in *args, i.e.
+    suffix : str, optional
+        Appended to the last path in \*args, i.e.
         CachePath('a', 'b', suffix='_long_suff.txt') == '/tmp/a/b_long_suff.txt'
 
-    *mode : int, optional, default=0o777
+    mode : int, optional, default=0o777
         Mode to create folder with, if it doesn't already exist.
     """
 
@@ -153,11 +153,13 @@ def TempPath(cls, *args, **kwargs):
     See CachePath for more details::
 
         TempPath('x', 'y', suffix='.z')
-        ==
-        CachePath('x', 'y', 'tempfilehere', suffix='.z')
-    *
+        # Is safer, easier, and explains your intent to always have a new file better than
+        CachePath('x', 'y', 'randomstringhere', suffix='.z')
 
-    TODO Remove on __exit__
+        # However,
+        TempPath() == CachePath()  # for convenience
+
+    .. TODO Remove on __exit__
     """
     suffix = kwargs.pop('suffix', '')
     real_args = list(args)

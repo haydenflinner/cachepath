@@ -4,19 +4,13 @@
 """Tests for `cachepath` package."""
 
 import pytest
-
-
 from cachepath import CachePath, Path
-
 
 @pytest.fixture
 def cachepath(tmpdir):
     import cachepath
     cachepath.location = tmpdir
     return cachepath
-    # import requests
-    # return requests.get('https://github.com/audreyr/cookiecutter-pypackage')
-
 
 def test_works(cachepath):
     p = cachepath.CachePath('lolfile')

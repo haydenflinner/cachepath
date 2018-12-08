@@ -23,7 +23,7 @@ useful if you were working on your parsing logic or want
 the files used in the process to to be available on disk for later debugging
 instead of just staying in memory until a crash.
 
-If this seems like a lot, try reading :doc:`Getting Started <readme>` first.
+If this seems like a lot, try reading :doc:`Getting Started <index>` first.
 
 ::
 

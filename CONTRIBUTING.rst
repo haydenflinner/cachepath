@@ -11,6 +11,7 @@ Setting Up for Development
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. highlight:: shell
+
 Here's how to set up `cachepath` for local development.
 
 1. Fork the `cachepath` repo on GitHub.

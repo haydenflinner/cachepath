@@ -1,5 +1,6 @@
 .. _genned:
-cachepath package
+
+cachepath module
 =================
 
 .. automodule:: cachepath
