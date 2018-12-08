@@ -1,20 +1,18 @@
-Welcome to CachePath's documentation!
+Welcome to cachepath's documentation!
 ======================================
 
 .. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+   :maxdepth: 1
 
-   readme
-   installation
+   Getting Started <readme>
    usage
-   modules
+   API Documentation<cachepath>
+   Changelog <history>
    contributing
-   authors
-   history
 
-Indices and tables
-==================
 * :ref:`genindex`
-* :ref:`modindex`
 * :ref:`search`
+
+.. * :ref:`modindex`
+
+.. include:: ../README.rst

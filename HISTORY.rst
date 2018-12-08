@@ -5,4 +5,4 @@ History
 0.1.0 (2018-12-08)
 ------------------
 
-* First release on PyPI.
+* First release on PyPI. Adds CachePath, TempPath, Path.

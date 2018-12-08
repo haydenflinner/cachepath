@@ -17,6 +17,7 @@ import os
 import shutil
 __all__ = [
     'CachePath',
+    'TempPath',
     'Path',  # Helpful re-export for those who want Py2 compatibility
     'clear',
     'rm',
@@ -29,6 +30,10 @@ location = tempfile.gettempdir()
 
 def clear(path):
     """Clear the file/dir, leaving it empty (dir) or 0 length (file)."""
+    if len(list(path.parents)) == 0 and '/' in str(path):
+        # We let through the case of .location == '.', because if you
+        # really insist on doing that, more power to ya.
+        raise ValueError("Shouldn't be able to happen, stop clownin")
     if path.is_dir():
         for sub in path.iterdir():
             if sub.is_dir():
@@ -41,7 +46,7 @@ def clear(path):
 
 def rm(path):
     """Delete the file/dir, even if it's a dir with files in it."""
-    if path.is_dir:
+    if path.is_dir():
         shutil.rmtree(str(path))
     else:
         path.unlink()
@@ -49,8 +54,8 @@ def rm(path):
 class CachePath(Path):
     """Construct a CachePath from one or several strings/Paths.
 
-    Constructing a CachePath automatically creates the file/folder it points to
-    if it doesn't already exist, as well as any preceding folders.
+    Constructing a CachePath automatically creates the preceding folders necessary
+    for the file to exist, if they're not already there.
 
     CachePaths also have a few helper methods:
 
@@ -69,6 +74,7 @@ class CachePath(Path):
         CachePath() == '/tmp/xyz123randomfile'
         CachePath('myfilename') == '/tmp/myfilename'
         CachePath('myfolder', dir=True) == '/tmp/myfolder/'
+        TempPath('myfolder') == '/tmp/myfolder/zsdskjrandom'
 
     Multi-component Paths::
 
@@ -76,9 +82,8 @@ class CachePath(Path):
         # Or, Alternate constructor to avoid {}/{}.format()
         p = CachePath('date', 'processed_data', dir=True)
 
-    For an example of real usage, we'll hack a cache for a website scraper,
-    useful if, you're working on your parsing logic and/or want
-    the files that were used to be available on disk instead of just in memory.
+    For an example of real usage, here's a quick cache for an arbitrary
+    function/arg combo
     ::
         def get_scraped_ebay_stats(product_id):
             p = CachePath('ebay_results/{}'.format(product_id))
@@ -101,17 +106,31 @@ class CachePath(Path):
             (d/'tool2results').touch()
             list(d.iterdir()) == ['tool1results', 'tool2results']
 
+    *suffix : str, optional
+        Appended to the last path in *args, i.e.
+        CachePath('a', 'b', suffix='_long_suff.txt') == '/tmp/a/b_long_suff.txt'
+
     *mode : int, optional
         Mode to create file with, if it doesn't already exist.
     """
 
-    def __new__(cls, *args, dir=False, mode=0o666):
+    def __new__(cls, *args, dir=False, mode=0o666, suffix=''):
+        if cls is CachePath:  # Copy-pasted from pathlib.py
+            cls = WindowsPath if os.name == 'nt' else PosixPath
+
+        # CachePath() == TempPath() == Path(tempfile.mktemp(location))
         if not args:
             args = [tempfile.mktemp(dir=location)]
-        if cls is CachePath:
-            cls = WindowsPath if os.name == 'nt' else PosixPath
+
+        # Attach the suffix
+        args = list(args)
+        args[-1] = str(Path(args[-1])) + suffix
+
+        # Construct the Path
         returning = cls._from_parts([location, *args])
-        cls.clear = clear
+
+        # Attach helpers. Could be done once at import time but oh well.
+        cls.clear = clear  # TODO fix the fact that this attaches to all Paths
         cls.rm = rm
 
         # Create all of the dirs leading to the path, if they don't exist.
@@ -120,3 +139,17 @@ class CachePath(Path):
         dirp.mkdir(exist_ok=True, parents=True)
 
         return returning
+
+def TempPath(cls, *args, suffix='', **kwargs):
+    """
+    See CachePath for more details::
+
+        TempPath('x', 'y', suffix='.z')
+        ==
+        CachePath('x', 'y', 'tempfilehere', suffix='.z')
+
+    TODO Remove on __exit__
+    """
+    return CachePath(*[*args,
+                        tempfile.mktemp(dir=location, suffix=suffix)],
+                     **kwargs)

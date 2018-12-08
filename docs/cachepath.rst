@@ -1,10 +1,8 @@
+.. _genned:
 cachepath package
 =================
 
-Module contents
----------------
-
 .. automodule:: cachepath
-    :members: CachePath, clear, rm
+    :members: TempPath, CachePath, clear, rm
     :undoc-members:
     :show-inheritance:
