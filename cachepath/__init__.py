@@ -9,12 +9,13 @@ __email__ = 'hayden@flinner.me'
 __version__ = '0.1.0'
 
 try:
-    from pathlib import Path, WindowsPath, PosixPath, _windows_flavour, _posix_flavour
-except:  # py2
-    from pathlib2 import Path, WindowsPath, PosixPath, _windows_flavour, _posix_flavour
+    from pathlib import Path, WindowsPath, PosixPath
+except ImportError:  # py2
+    from pathlib2 import Path, WindowsPath, PosixPath
 
 import os
 import shutil
+import tempfile
 __all__ = [
     'CachePath',
     'TempPath',
@@ -23,10 +24,8 @@ __all__ = [
     'rm',
 ]
 
-sep = _windows_flavour.sep if os.name == 'nt' else _posix_flavour.sep
-
-import tempfile
 location = tempfile.gettempdir()
+
 
 def clear(path):
     """Clear the file/dir, leaving it empty (dir) or 0 length (file)."""
@@ -44,12 +43,14 @@ def clear(path):
         with path.open('w'):
             pass
 
+
 def rm(path):
     """Delete the file/dir, even if it's a dir with files in it."""
     if path.is_dir():
         shutil.rmtree(str(path))
     else:
         path.unlink()
+
 
 class CachePath(Path):
     """Construct a CachePath from one or several strings/Paths.
@@ -110,24 +111,29 @@ class CachePath(Path):
         Appended to the last path in *args, i.e.
         CachePath('a', 'b', suffix='_long_suff.txt') == '/tmp/a/b_long_suff.txt'
 
-    *mode : int, optional
-        Mode to create file with, if it doesn't already exist.
+    *mode : int, optional, default=0o777
+        Mode to create folder with, if it doesn't already exist.
     """
 
-    def __new__(cls, *args, dir=False, mode=0o666, suffix=''):
+    def __new__(cls, *args, **kwargs):
+        dir = kwargs.pop('dir', False)  # Py2 concessions :'(
+        suffix = kwargs.pop('suffix', '')
+
         if cls is CachePath:  # Copy-pasted from pathlib.py
             cls = WindowsPath if os.name == 'nt' else PosixPath
 
         # CachePath() == TempPath() == Path(tempfile.mktemp(location))
         if not args:
-            args = [tempfile.mktemp(dir=location)]
+            args = [tempfile.mktemp(dir=str(location))]
 
         # Attach the suffix
         args = list(args)
         args[-1] = str(Path(args[-1])) + suffix
 
         # Construct the Path
-        returning = cls._from_parts([location, *args])
+        real_args = [str(location)]
+        real_args.extend(args)
+        returning = cls._from_parts(real_args)
 
         # Attach helpers. Could be done once at import time but oh well.
         cls.clear = clear  # TODO fix the fact that this attaches to all Paths
@@ -136,20 +142,24 @@ class CachePath(Path):
         # Create all of the dirs leading to the path, if they don't exist.
         # If the path is supposed to be a directory, make that too.
         dirp = returning if dir else returning.parent
-        dirp.mkdir(exist_ok=True, parents=True)
+        mkdir_kwargs = {'mode': kwargs['mode']} if 'mode' in kwargs else {}
+        dirp.mkdir(exist_ok=True, parents=True, **mkdir_kwargs)
 
         return returning
 
-def TempPath(cls, *args, suffix='', **kwargs):
+
+def TempPath(cls, *args, **kwargs):
     """
     See CachePath for more details::
 
         TempPath('x', 'y', suffix='.z')
         ==
         CachePath('x', 'y', 'tempfilehere', suffix='.z')
+    *
 
     TODO Remove on __exit__
     """
-    return CachePath(*[*args,
-                        tempfile.mktemp(dir=location, suffix=suffix)],
-                     **kwargs)
+    suffix = kwargs.pop('suffix', '')
+    real_args = list(args)
+    real_args.append(tempfile.mktemp(dir=str(location), suffix=suffix))
+    return CachePath(*args, **kwargs)

@@ -6,8 +6,7 @@
 import pytest
 
 
-from cachepath import CachePath
-from pathlib import Path
+from cachepath import CachePath, Path
 
 
 @pytest.fixture
@@ -21,12 +20,12 @@ def cachepath(tmpdir):
 
 def test_works(cachepath):
     p = cachepath.CachePath('lolfile')
-    p.open('w').writelines('hi')
+    p.open('w').writelines([u'hi'])
     assert 'hi' == p.read_text()
 
 def test_rm_clear_file(cachepath):
     p = cachepath.CachePath()
-    p.write_text('lol')
+    p.write_text(u'lol')
     p.clear()
     assert p.read_text() == ''
     p.rm()
