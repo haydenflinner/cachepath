@@ -6,22 +6,38 @@
 import pytest
 
 
-from cachepath import cachepath
+import cachepath
+from cachepath import CachePath
+from pathlib import Path
 
 
 @pytest.fixture
-def response():
-    """Sample pytest fixture.
-
-    See more at: http://doc.pytest.org/en/latest/fixture.html
-    """
+def mod(tmpdir):
+    cachepath.location = tmpdir
+    return cachepath
     # import requests
     # return requests.get('https://github.com/audreyr/cookiecutter-pypackage')
 
 
-def test_content(response):
-    """Sample pytest test function with the pytest fixture as an argument."""
-    cachepath/'xyz'.open('w').writelines('hi')
-    assert 'hi' in cachepath/'xyz'.read_text()
-    # from bs4 import BeautifulSoup
-    # assert 'GitHub' in BeautifulSoup(response.content).title.string
+def test_works(mod):
+    p = mod.CachePath('lolfile')
+    p.open('w').writelines('hi')
+    assert 'hi' == p.read_text()
+
+def test_unique(mod):
+    p = mod.CachePath()
+    assert p.read_text() == ''
+
+def test_clear(mod):
+    p = mod.CachePath('lolfolder', folder=True)
+    # We would get surprising behavior if / created CachePaths given the side
+    # effecting constructor, so don't do that!
+    (p/'file').touch()
+    p.clear()
+    assert len(list(p.iterdir())) == 0
+    assert not (p/'file').exists()
+
+def test_can_change_location(tmpdir):
+    # Old test, now the rest of the tests depend on this to work, but can't hurt.
+    cachepath.location = tmpdir
+    assert CachePath('dummy').parent == Path(tmpdir)
