@@ -47,6 +47,13 @@ def test_can_change_location():
     cachepath.location = './dummy'
     assert cachepath.CachePath('innerfile') == Path('./dummy/innerfile')
 
+def test_import_side_effects(tmpdir):
+    # This isn't encouraged to depend on, but if someone does, would rather not break them.
+    import cachepath
+    Path(tmpdir).clear()
+    (Path(tmpdir)/'test_file').rm()
+    assert cachepath.CachePath('innerfile') == Path('./dummy/innerfile')
+
 @pytest.mark.xfail
 def test_tmp_removes_self(cachepath, tmpdir):
     # TODO

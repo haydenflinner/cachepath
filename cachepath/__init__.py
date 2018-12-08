@@ -28,7 +28,10 @@ location = tempfile.gettempdir()
 
 
 def clear(path):
-    """Clear the file/dir, leaving it empty (dir) or 0 length (file)."""
+    """Clear the file/dir, leaving it empty (dir) or 0 length (file).
+
+    Monkey-patched onto all Paths on import.
+    Creates file if path doesn't exist."""
     if len(list(path.parents)) == 0 and '/' in str(path):
         # We let through the case of .location == '.', because if you
         # really insist on doing that, more power to ya.
@@ -45,11 +48,20 @@ def clear(path):
 
 
 def rm(path):
-    """Delete the file/dir, even if it's a dir with files in it."""
+    """Delete the file/dir, even if it's a dir with files in it.
+
+    Monkey-patched onto all Paths on import.
+    Does nothing if path doesn't exist."""
+    if not path.exists():
+        return
     if path.is_dir():
         shutil.rmtree(str(path))
     else:
         path.unlink()
+
+
+Path.rm = rm
+Path.clear = clear
 
 
 class CachePath(Path):
@@ -108,7 +120,7 @@ class CachePath(Path):
             list(d.iterdir()) == ['tool1results', 'tool2results']
 
     suffix : str, optional
-        Appended to the last path in \*args, i.e.
+        Appended to the last path in \\*args, i.e.
         CachePath('a', 'b', suffix='_long_suff.txt') == '/tmp/a/b_long_suff.txt'
 
     mode : int, optional, default=0o777
@@ -134,10 +146,6 @@ class CachePath(Path):
         real_args = [str(location)]
         real_args.extend(args)
         returning = cls._from_parts(real_args)
-
-        # Attach helpers. Could be done once at import time but oh well.
-        cls.clear = clear  # TODO fix the fact that this attaches to all Paths
-        cls.rm = rm
 
         # Create all of the dirs leading to the path, if they don't exist.
         # If the path is supposed to be a directory, make that too.
