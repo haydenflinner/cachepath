@@ -26,10 +26,11 @@ def test_works(mod):
 
 def test_unique(mod):
     p = mod.CachePath()
+    p.clear()
     assert p.read_text() == ''
 
 def test_clear(mod):
-    p = mod.CachePath('lolfolder', folder=True)
+    p = mod.CachePath('lolfolder', dir=True)
     # We would get surprising behavior if / created CachePaths given the side
     # effecting constructor, so don't do that!
     (p/'file').touch()

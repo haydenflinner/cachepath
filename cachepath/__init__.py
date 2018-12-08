@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 
-"""Top-level package for CachePath."""
+"""
+Package that provides CachePath, as well as exporting a Python2/3 compatible Path.
+"""
 
 __author__ = """Hayden Flinner"""
 __email__ = 'hayden@flinner.me'
@@ -13,20 +15,20 @@ except:  # py2
 
 import os
 import shutil
+__all__ = [
+    'CachePath',
+    'Path',  # Helpful re-export for those who want Py2 compatibility
+    'clear',
+    'rm',
+]
 
 sep = _windows_flavour.sep if os.name == 'nt' else _posix_flavour.sep
 
 import tempfile
 location = tempfile.gettempdir()
 
-def clear_contents(path):
-    """Clear the cached file/folder, leaving it empty (dir) or 0 length (file).
-    If path doesn't exist, make it a directory.
-    """
-    if not path.exists():
-        path.mkdir()
-        return
-
+def clear(path):
+    """Clear the file/dir, leaving it empty (dir) or 0 length (file)."""
     if path.is_dir():
         for sub in path.iterdir():
             if sub.is_dir():
@@ -37,79 +39,84 @@ def clear_contents(path):
         with path.open('w'):
             pass
 
+def rm(path):
+    """Delete the file/dir, even if it's a dir with files in it."""
+    if path.is_dir:
+        shutil.rmtree(str(path))
+    else:
+        path.unlink()
 
 class CachePath(Path):
-    #_flavour = _windows_flavour if os.name == 'nt' else _posix_flavour
-    def __new__(cls, *args, folder=False, mode=0o666):
-        """Construct a CachePath from one or several strings/Paths.
+    """Construct a CachePath from one or several strings/Paths.
 
-        >>> CachePath() == '/tmp/xyz123randomfile'
-        True
+    Constructing a CachePath automatically creates the file/folder it points to
+    if it doesn't already exist, as well as any preceding folders.
 
-        >>> CachePath('myfilename') = '/tmp/myfilename/'
-        True
+    CachePaths also have a few helper methods:
 
-        >>> p = CachePath('date/processed_data', folder=True)
-        >>> # or
-        >>> p = CachePath('date', 'processed_data', folder=True)
-        >>> (p/'tool1results').touch()
-        >>> (p/'tool2results').clear()  # touch + remove contents
-        >>> list(p.iterdir())
-        [['tool1results', 'tool2results']
-        """
+        :func:`CachePath().clear() <cachepath.clear>`
+
+        :func:`CachePath().rm() <cachepath.rm>`
+
+        By accident, these methods are also attached to regular Paths after
+        constructing a CachePath, but it's not recommended to depend on this
+        behavior.
+
+    Examples
+    --------
+    Basic Usage::
+
+        CachePath() == '/tmp/xyz123randomfile'
+        CachePath('myfilename') == '/tmp/myfilename'
+        CachePath('myfolder', dir=True) == '/tmp/myfolder/'
+
+    Multi-component Paths::
+
+        p = CachePath('date/processed_data', dir=True)
+        # Or, Alternate constructor to avoid {}/{}.format()
+        p = CachePath('date', 'processed_data', dir=True)
+
+    For an example of real usage, we'll hack a cache for a website scraper,
+    useful if, you're working on your parsing logic and/or want
+    the files that were used to be available on disk instead of just in memory.
+    ::
+        def get_scraped_ebay_stats(product_id):
+            p = CachePath('ebay_results/{}'.format(product_id))
+            if not p.exists():
+               sh('wget {}'.format(p))
+            return parser.parse(p.read_text())
+
+    Parameters
+    ----------
+    *args : [str], optional
+        List of strings to join for Path. If None, ``getempfile`` is used.
+
+    *dir: bool, optional
+        Is the path intended to be a directory? Useful when you just need a
+        tempdir for lots of files, and you don't want to make a CachePath
+        out of each. ::
+
+            d = CachePath(date, dir=True)
+            (d/'tool1results').touch()
+            (d/'tool2results').touch()
+            list(d.iterdir()) == ['tool1results', 'tool2results']
+
+    *mode : int, optional
+        Mode to create file with, if it doesn't already exist.
+    """
+
+    def __new__(cls, *args, dir=False, mode=0o666):
         if not args:
             args = [tempfile.mktemp(dir=location)]
         if cls is CachePath:
             cls = WindowsPath if os.name == 'nt' else PosixPath
         returning = cls._from_parts([location, *args])
-        cls.clear = clear_contents
+        cls.clear = clear
+        cls.rm = rm
 
-        # Create all of the folders leading to the path, if they don't exist
-        dirp = returning.parent if not folder else returning
+        # Create all of the dirs leading to the path, if they don't exist.
+        # If the path is supposed to be a directory, make that too.
+        dirp = returning if dir else returning.parent
         dirp.mkdir(exist_ok=True, parents=True)
 
-        if not folder:
-            returning.touch(mode=mode)
         return returning
-
-#def WindowsCachePath
-    def clear(self):
-        """Clears contents of the cache if it's a folder, otherwise clears file."""
-        clear_contents(self)
-
-    def remove(self):
-        """rm -r str(self)"""
-        if self.is_dir:
-            shutil.rmtree(str(self))
-        else:
-            self.unlink()
-
-
-#class CachePath(Path):
-    #def __init__(self):
-'''
-class CachePath(Path):
-    """Base class for manipulating paths without I/O.
-    Path represents a filesystem path and offers operations which
-    don't imply any actual filesystem I/O.  Depending on your system,
-    instantiating a Path will return either a PosixPath or a
-    WindowsPath object.  You can also instantiate either of these classes
-    directly, regardless of your system.
-    """
-    __slots__ = (
-        '_drv', '_root', '_parts',
-        '_str', '_hash', '_pparts', '_cached_cparts',
-    )
-
-    def __new__(cls, *args):
-        """Construct a Path from one or several strings and or existing
-        Path objects.  The strings and path objects are combined so as
-        to yield a canonicalized path, which is incorporated into the
-        new Path object.
-        """
-        print('__new__', cls, args)
-        if cls is CachePath:
-            cls = WindowsPath if os.name == 'nt' else PosixPath
-        return cls._from_parts(args)
-
-'''
