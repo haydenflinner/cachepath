@@ -6,7 +6,7 @@ Package that provides CachePath, as well as exporting a Python2/3 compatible Pat
 
 __author__ = """Hayden Flinner"""
 __email__ = 'hayden@flinner.me'
-__version__ = '1.0.0'
+__version__ = '1.1.0'
 
 try:
     from pathlib import Path, WindowsPath, PosixPath
