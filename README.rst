@@ -18,36 +18,95 @@ Getting Started
 
 **Install:** ``pip install cachepath``
 
-**Import:** ``from cachepath import CachePath, Path``
+**Import:** ``from cachepath import CachePath, TempPath, Path``
 
-**Docs:** https://cachepath.readthedocs.io
+**Docs:** `ReadTheDocs`_ | `API doc is here`_
 
 **Why?**
-    1. Integrates ``pathlib`` with ``tempfile`` and ``shutil``
-    2. Wraps ``pathlib`` import for Py2/3 compat. (not in ``six``)
+    1. Integrates ``pathlib`` with ``tempfile.gettempdir`` and ``shutil.rmtree`` by providing ``TempPath`` and ``Path.rm()``::
+
+          path = TempPath()
+          path.rm()
+          # or would you rather..
+          path = None
+          with tempfile.NamedTemporaryFile(delete=False) as f:
+              path = Path(f.name)
+          # Only now can we use Path. If we tried using it within the With
+          # (for example for path.read_text()), we'd break on Windows
+          path.unlink()  # only if file, doesn't work on folders
+
+    2. Wraps ``pathlib`` import for Py2/3 compat. (not in ``six``!)::
+
+          from cachepath import Path
+          # or
+          try: from pathlib import Path; except ImportError: from pathlib2 import Path
+
+    3. Provides `CachePath`_, which lets you quickly get a parameterized temp filename, with all folders automatically created::
+
+          r = CachePath(date, userid, 'expensive_results.txt')
+          assert (r == Path('/tmp/', date, userid, 'expensive_results.txt')
+                  and r.parent.exists())
+          r.rm()  # File remove
+          r.parent.rm()  # Symmetric with folder remove!
+
+          # Without cachepath
+          p = Path(tempfile.gettempdir(), date, userid, 'expensive_results.txt').
+          # Don't update timestamp if it already exists so that we don't cause
+          # Make-like tools to always think something's changed
+          if not p.parent.exists():
+              p.parent.mkdir(parents=True, exist_ok=True)
+
+          p.unlink()  # Why is it .unlink() instead of .remove()?
+          # Why .remove and .unlink, but mkdir instead of createdir?
+          p.parent.remove()
+          # .remove() might throw because there was another file in the folder,
+          # but we didn't care, they're tempfiles!
+          import shutil
+          shutil.rmtree(p.parent)
 
 **Why, but longer:**
 
 Do you need a temp path to pass to some random tool for its logfile?
 Behold, a gaping hole in ``pathlib``::
 
-    def easy_get_tempfile():
+    import tempfile
+    import os
+    try: from pathlib import Path; except ImportError: from pathlib2 import Path
+    def get_tempfile():
+        fd, loc = tempfile.mkstemp()
+        os.close(fd)  # If we forgot do this, it would stay open until process exit
+        return Path(loc)
+
+    # Easier way
+    from cachepath import TempPath
+    def get_tempfile():
         return TempPath()  # Path('/tmp/213kjdsrandom')
-    def hard_get_tempfile():
-        # Deprecated, plus I forgot to call Path the first time
-        return Path(tempfile.mktemp())
 
-Now, suppose I'm running this tool multiple times, and I'd like to skip running the
-tool if I already have results. How do I attach some info to the
-filename?  ::
 
-    def easy_get_tempfile(param):
-        return CachePath(param, suffix='.txt')  # Path('/tmp/param.txt')
-    def hard_get_tempfile(param):
-        return (Path(tempfile.gettempdir())/param).with_suffix('txt')
+But this module is called cachepath, not temppath, what gives?
 
-Ew. Now, I'm running this tool *a lot*, maybe even over a tree of data that looks
-like this! ::
+Suppose I'm running that same imaginary tool pretty often, but I'd like to skip running
+it if I already have results for a certain day. Just sticking some identifying info into a filename
+should be good enough.
+Something like ``Path('/tmp/20181204_toolresults.txt')`` ::
+
+    # try: from pathlib import Path; except ImportError: from pathlib2 import Path
+    # We'll cheat a little to get py2/3 compat without so much ugliness
+    from cachepath import Path
+    import tempfile
+    def get_tempfile(date):
+        filename = '{}_toolresults.txt'.format(date)
+        return Path(tempfile.gettempdir(), filename)
+
+    # Easier to do this...
+    from cachepath import CachePath
+    def get_tempfile(date):
+        return CachePath(date, suffix='.txt')
+
+Not bad, but not great. But our requirements changed, let's go a step further.
+
+Now I'm running this tool *a lot*, over a tree of data that looks
+like this::
 
     2018-12-23
         person1
@@ -69,62 +128,66 @@ I want my logs to be structured the same way.  How hard can it be? ::
 
 Let's find out::
 
-    def easy_get_path(date, person):
+    # Let's get the easy way out of the way first :)
+    def get_path(date, person):
         return CachePath(date, person, suffix='_output.txt')
-    def hard_get_path(date, person):
-        personfilename = '{}_output.txt'.format(person)
-        returning = Path(tempfile.gettempdir())/date/personfilename
-        return returning
+        # Automatically ensures /tmp/date/ exists when we create the CachePath!
 
-Actually, we made a mistake. These aren't equivalent. We may find out when we
-pass our path to another tool that it refuses to create the ``date`` folder
-if it doesn't already exist. This issue can show itself as a Permission Denied
-error on Unix systems rather than the "File/Folder not found" you might think
-you would get. Regardless, we figured it out, let's try again::
-
-    def hard_get_path():
-        personfilename = '{}_output.txt'.format(person)
+    # Now the hard way
+    def get_path(date, person):
+        personfilename = '{p}_output.txt'.format(p=person)
         returning = Path(tempfile.gettempdir())/date/personfilename
         # Does this mkdir update the modified timestamp of the folders we're in?
         # Might matter if we're part of a larger toolset...
         returning.parent.mkdir(exist_ok=True, parents=True)
         return returning
 
-Now, how do we clear out some day's results so that we can be sure we're looking
-at fresh output of the tool? ::
+Suppose we hadn't remembered to make the ``$date/`` folders. When we passed the
+Path out to another tool, or tried to .open it,
+we may have gotten a Permission Denied
+error on Unix systems rather than the "File/Folder not found" you might expect.
+With CachePath, this can't happen. Creating a CachePath implicitly creates all
+of the preceding directories necessary for your file to exist.
+
+Now, suppose we found a bug in this external tool we were using and we're going
+to re-run it for a day.
+How do we clear out that day's results so that we can be sure we're looking
+at fresh output from the tool? Well, with CachePath, it's just::
 
   def easy_clear_date(date):
       CachePath(date).clear()  # rm -r /tmp/date/*
+
+But if you don't have cachepath, you'll find that most Python libs play it
+pretty safe when it comes to files. Path.remove() requires the folder to be empty,
+and doesn't provide a way to empty the folder. Not to mention, what if our results
+folders had special permissions, or was actually a symlink, and we had write access
+but not delete? Oh well,
+let's see what we can do::
+
   def hard_clear_date(date):
       # We happen to know that date is a folder and not a file (at least in our
-      # current design), so we know we need some form of .remove rather than
+      # current design), so we know we need some form of .remove() rather than
       # .unlink(). Unfortunately, pathlib doesn't offer one for folders with
       # files still in them. If you google how to do it, you will find plenty of
-      # answers, one of which is a pure pathlib recursive solution! But we're lazy:
+      # answers, one of which is a pure pathlib recursive solution! But we're lazy,
+      # so lets bring in yet another module:
       p = Path(tempfile.gettempdir(), date)
       import shutil
       if p.exists():
           shutil.rmtree(p)
       p.mkdir(exist_ok=True, parents=True)
-      # This still isn't exactly equivalent, because we've lost whatever
-      # permissions were set on the date folder, or if it were actually a symlink
-      # to somewhere else, that's gone now.
-
-And all of this is ignoring the hacky imports you have to do to get ``pathlib``
-in Py3 and ``pathlib2`` in Py2::
-
-    from cachepath import Path  # py2/3
-    # or
-    try:
-        from pathlib import Path
-    except:
-        from pathlib2 import Path
-
+      # This still isn't exactly equivalent to CachePath.clear(), because we've
+      # lost whatever permissions were set on the date folder, and if it were
+      # actually a symlink to somewhere else, that's gone now.
 
 Convinced yet? ``pip install cachepath`` or copy `the source`_ into your local
 ``utils.py`` (you know you have one.)
 
 `API doc is here`_.
+
+
+By the way, as a side effect of importing ``cachepath``, all Paths get the ability
+to do ``rm()`` and ``clear()``.
 
 
 Shameless Promo
@@ -144,4 +207,6 @@ Find yourself working with paths a lot in cmd-line tools? You might like
 .. _`audreyr/cookiecutter-pypackage`: https://github.com/audreyr/cookiecutter-pypackage
 .. _`invoke`: https://www.pyinvoke.org
 .. _`magicinvoke`: https://magicinvoke.readthedocs.io/en/latest/
+.. _`ReadTheDocs`: https://cachepath.readthedocs.io/en/latest/
 .. _`API doc is here`: https://cachepath.readthedocs.io/en/latest/cachepath.html
+.. _`CachePath`: https://cachepath.readthedocs.io/en/latest/cachepath.html#cachepath.CachePath

@@ -134,15 +134,17 @@ class CachePath(Path):
         if cls is CachePath:  # Copy-pasted from pathlib.py
             cls = WindowsPath if os.name == 'nt' else PosixPath
 
-        # CachePath() == TempPath() == Path(tempfile.mktemp(location))
+        # CachePath() == TempPath() == Path(tempfile.mkstemp(location)[1])
         if not args:
-            args = [tempfile.mktemp(dir=str(location))]
+            fd, loc = tempfile.mkstemp(dir=str(location), suffix=suffix)
+            os.close(fd)
+            args = [loc]
+        else:
+            # Attach the suffix
+            args = list(args)
+            args[-1] = str(args[-1]) + suffix
 
-        # Attach the suffix
-        args = list(args)
-        args[-1] = str(Path(args[-1])) + suffix
-
-        # Construct the Path
+        # Construct the Path. Prepend the /tmp location
         real_args = [str(location)]
         real_args.extend(args)
         returning = cls._from_parts(real_args)
@@ -167,7 +169,7 @@ def TempPath(cls, *args, **kwargs):
         # However,
         TempPath() == CachePath()  # for convenience
 
-    .. TODO Remove on __exit__
+    .. TODO Remove on __exit__?
     """
     suffix = kwargs.pop('suffix', '')
     real_args = list(args)
